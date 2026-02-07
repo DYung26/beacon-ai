@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Production builds
+dist/
+build/
+.next/
+out/
+
+# Development
+.env
+.env.local
+.env.*.local
+.pnpm-debug.log*
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.emacs.d/
+.vim/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Turborepo
+.turbo/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Project-specific
+todo.md
+note.md
+docs/
+
+# Browser extension build
+apps/extension/dist/
+apps/extension/.vite/
+
+# Next.js specific
+apps/backend/.next/
+apps/backend/out/
+apps/backend/.env.local
+apps/backend/.env.*.local
+
+# Temp files
+*.tmp
+*.bak
+.cache/
