@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Beacon",
+  "version": "0.1.0",
+  "permissions": ["scripting", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/observer.ts"]
+    }
+  ]
+}
