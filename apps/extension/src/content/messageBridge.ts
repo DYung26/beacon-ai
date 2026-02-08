@@ -16,6 +16,10 @@
 import type { PageContext, GuideResponse } from '@beacon/shared'
 import { requestGuide } from './guideClient'
 
+// Backend URL is hardcoded here.
+// Browser extensions cannot reliably read environment variables at runtime,
+// so we use a fixed localhost URL for development.
+// For production builds, update this URL or inject it via a config file.
 const BACKEND_URL = 'http://localhost:3000'
 
 // Track pending requests to match responses

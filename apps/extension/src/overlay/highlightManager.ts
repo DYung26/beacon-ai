@@ -33,7 +33,6 @@ interface HighlightManagerInterface {
 }
 
 let initialized = false
-let updateInterval: number | null = null
 let currentSelectors = new Set<string>()
 
 /**
@@ -157,19 +156,27 @@ export function startHighlightSystem(
   const manager = createHighlightManager()
   manager.initialize()
 
-  // Update highlights periodically based on context changes
-  // This ensures highlights stay aligned and adapt to page changes
-  updateInterval = window.setInterval(() => {
+  let lastContext: PageContext | null = null
+  let lastGuideRequestTime = 0
+  const MIN_GUIDE_REQUEST_INTERVAL = 2000 // Minimum 2s between guide requests
+
+  // Function to update highlights based on context
+  // This is called when the page context changes (via scroll/resize listeners)
+  function updateHighlights(context: PageContext) {
     try {
-      const context = getPageContext()
+      const now = Date.now()
       
       // If guide coordinator is available, request backend guide
-      if (guideCoordinator) {
+      // But only if enough time has passed since last request
+      if (guideCoordinator && now - lastGuideRequestTime >= MIN_GUIDE_REQUEST_INTERVAL) {
+        lastGuideRequestTime = now
         guideCoordinator.requestGuide(context).catch((error) => {
           console.warn('[Beacon] Failed to request guide:', error)
         })
+      }
 
-        // If there's a cached response, use it; otherwise fall back to local selection
+      // If there's a cached response, use it; otherwise fall back to local selection
+      if (guideCoordinator) {
         const lastResponse = guideCoordinator.getLastResponse()
         if (lastResponse) {
           manager.updateFromGuide(lastResponse)
@@ -183,13 +190,65 @@ export function startHighlightSystem(
     } catch (error) {
       console.warn('[Beacon] Error updating highlights:', error)
     }
-  }, 500) // Update every 500ms for smooth tracking
+  }
+
+  // Set up event listeners for page changes
+  let scrollTimeout: number | null = null
+  let resizeTimeout: number | null = null
+  const SCROLL_DEBOUNCE = 300
+  const RESIZE_DEBOUNCE = 300
+
+  // Scroll listener: Update when user scrolls
+  const handleScroll = () => {
+    if (scrollTimeout !== null) {
+      clearTimeout(scrollTimeout)
+    }
+    scrollTimeout = window.setTimeout(() => {
+      const context = getPageContext()
+      if (context !== lastContext) {
+        lastContext = context
+        updateHighlights(context)
+      }
+      scrollTimeout = null
+    }, SCROLL_DEBOUNCE)
+  }
+
+  // Resize listener: Update when viewport resizes
+  const handleResize = () => {
+    if (resizeTimeout !== null) {
+      clearTimeout(resizeTimeout)
+    }
+    resizeTimeout = window.setTimeout(() => {
+      const context = getPageContext()
+      if (context !== lastContext) {
+        lastContext = context
+        updateHighlights(context)
+      }
+      resizeTimeout = null
+    }, RESIZE_DEBOUNCE)
+  }
+
+  // Add event listeners
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('resize', handleResize, { passive: true })
+
+  // Initial highlight render
+  const initialContext = getPageContext()
+  lastContext = initialContext
+  updateHighlights(initialContext)
 
   // Return cleanup function
   return () => {
-    if (updateInterval !== null) {
-      clearInterval(updateInterval)
-      updateInterval = null
+    window.removeEventListener('scroll', handleScroll)
+    window.removeEventListener('resize', handleResize)
+    
+    if (scrollTimeout !== null) {
+      clearTimeout(scrollTimeout)
+      scrollTimeout = null
+    }
+    if (resizeTimeout !== null) {
+      clearTimeout(resizeTimeout)
+      resizeTimeout = null
     }
     manager.cleanup()
   }

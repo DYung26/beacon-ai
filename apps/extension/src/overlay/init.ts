@@ -28,6 +28,12 @@ declare global {
 window.__beaconOverlay = overlayManager
 
 /**
+ * Create highlight manager first, as we need it in the coordinator's onResponse callback.
+ */
+const highlightManager = createHighlightManager()
+highlightManager.initialize()
+
+/**
  * Initialize the guide API coordinator for backend communication.
  *
  * IMPORTANT: We use requestGuideFromOverlay as the custom request function.
@@ -39,6 +45,10 @@ window.__beaconOverlay = overlayManager
  * 2. Content script receives message and executes fetch()
  * 3. Content script sends response back via window.postMessage()
  * 4. Overlay receives response and updates highlights
+ *
+ * CRITICAL: onResponse callback triggers immediate highlight updates.
+ * This ensures highlights render as soon as the backend responds,
+ * not just on scroll/resize events.
  */
 const guideCoordinator = createGuideCoordinator({
   requestFn: requestGuideFromOverlay, // Use message-based communication
@@ -47,6 +57,9 @@ const guideCoordinator = createGuideCoordinator({
       highlights: response.highlights.length,
       debug: response.debug,
     })
+    // CRITICAL: Render highlights immediately when response arrives
+    // Do NOT wait for scroll/resize events
+    highlightManager.updateFromGuide(response)
   },
   onError: (error) => {
     console.warn('[Beacon] Guide API request failed:', error.message)
@@ -54,8 +67,7 @@ const guideCoordinator = createGuideCoordinator({
 })
 
 // Create highlight manager separately for integration
-const highlightManager = createHighlightManager()
-highlightManager.initialize()
+// (Already created above before guideCoordinator for onResponse callback)
 
 // Set up guide integration bridge
 const guideIntegration = createGuideIntegration(

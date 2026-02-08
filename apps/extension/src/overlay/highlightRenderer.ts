@@ -87,9 +87,10 @@ function createHighlightElement(
   }
   highlightContainer.appendChild(highlightEl)
 
-  // Create tooltip
+  // Create tooltip - supports full text on hover
   const tooltipEl = document.createElement('div')
   tooltipEl.className = BEACON_TOOLTIP_CLASS
+  tooltipEl.title = instruction.reason || 'Highlighted' // Full text in title attribute
   tooltipEl.textContent = instruction.reason || 'Highlighted'
   highlightContainer.appendChild(tooltipEl)
 
@@ -228,15 +229,18 @@ function updateHighlightPosition(entry: HighlightEntry): void {
   entry.highlightEl.style.height = `${height}px`
 
   // Position tooltip above the highlight (if space, else below)
-  const tooltipHeight = 28 // Approximate height of tooltip
-  const tooltipTop = top - tooltipHeight - 4 // 4px gap above
+  const tooltipHeight = 28 // Approximate height of tooltip in normal state
+  const tooltipGap = 8 // Gap between highlight and tooltip
+  const tooltipTop = top - tooltipHeight - tooltipGap
   const tooltipLeft = Math.max(0, left) // Don't go off-screen left
 
   if (tooltipTop < 0) {
     // Not enough space above, position below instead
-    entry.tooltipEl.style.top = `${top + height + 4}px`
+    entry.tooltipEl.style.top = `${top + height + tooltipGap}px`
+    entry.tooltipEl.classList.remove('above')
   } else {
     entry.tooltipEl.style.top = `${tooltipTop}px`
+    entry.tooltipEl.classList.add('above')
   }
 
   entry.tooltipEl.style.left = `${tooltipLeft}px`

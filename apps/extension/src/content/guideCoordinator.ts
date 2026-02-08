@@ -18,7 +18,11 @@ import { requestGuide } from './guideClient'
 // Throttle and debounce configuration
 const THROTTLE_INTERVAL_MS = 1000 // Minimum time between requests
 const DEBOUNCE_DELAY_MS = 200 // Delay before sending after context change
-const BACKEND_URL = 'http://localhost:3000' // Backend server URL
+// Backend URL is hardcoded here.
+// Browser extensions cannot reliably read environment variables at runtime,
+// so we use a fixed localhost URL for development.
+// For production builds, update this URL or inject it via a config file.
+const BACKEND_URL = 'http://localhost:3000'
 
 interface GuideCoordinatorConfig {
   onResponse?: (response: GuideResponse) => void
