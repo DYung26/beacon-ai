@@ -24,11 +24,6 @@ import type { GuideResponse, PageContext } from '@beacon/shared'
 export async function requestGuideFromOverlay(
   pageContext: PageContext
 ): Promise<GuideResponse> {
-  console.log('[Beacon Overlay Guide Client] Sending request to content script', {
-    elementCount: pageContext.elements.length,
-    url: pageContext.url,
-  })
-
   return new Promise((resolve) => {
     const id = `beacon-overlay-${Date.now()}-${Math.random()}`
 
@@ -43,7 +38,6 @@ export async function requestGuideFromOverlay(
         message.type === 'beacon:guide-response' &&
         message.id === id
       ) {
-        console.log('[Beacon Overlay Guide Client] Response received from content script', message.payload)
         window.removeEventListener('message', handleResponse)
         resolve(message.payload as GuideResponse)
       }
@@ -53,7 +47,6 @@ export async function requestGuideFromOverlay(
     window.addEventListener('message', handleResponse)
 
     // Send request to content script
-    console.log('[Beacon Overlay Guide Client] Posting message with id:', id)
     window.postMessage(
       {
         type: 'beacon:request-guide',
@@ -66,7 +59,6 @@ export async function requestGuideFromOverlay(
     // Timeout after 30 seconds
     setTimeout(() => {
       window.removeEventListener('message', handleResponse)
-      console.log('[Beacon Overlay Guide Client] Request timeout after 30s')
       resolve({
         highlights: [],
         debug: {

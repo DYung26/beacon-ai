@@ -173,16 +173,12 @@ function parseAgentOutput(content: string): AgentOutput | null {
   }
 }
 
-/**
- * Apply configuration constraints to agent decisions.
- */
 function applyConstraints(
   decisions: AgentDecision[],
   config: AgentConfig
 ): AgentDecision[] {
   let filtered = [...decisions]
 
-  // Filter by confidence threshold
   if (config.minConfidence) {
     const confidenceOrder = { low: 0, medium: 1, high: 2 }
     const minLevel = confidenceOrder[config.minConfidence]
@@ -191,9 +187,7 @@ function applyConstraints(
     )
   }
 
-  // Limit number of highlights
   if (config.maxHighlights && filtered.length > config.maxHighlights) {
-    // Prefer high-confidence items
     filtered.sort((a, b) => {
       const confOrder = { low: 0, medium: 1, high: 2 }
       return confOrder[b.confidence] - confOrder[a.confidence]
@@ -204,9 +198,6 @@ function applyConstraints(
   return filtered
 }
 
-/**
- * Convert agent decisions to HighlightInstructions.
- */
 function decisionsToHighlights(decisions: AgentDecision[]): HighlightInstruction[] {
   return decisions.map((d) => ({
     selector: d.selector,
@@ -216,31 +207,16 @@ function decisionsToHighlights(decisions: AgentDecision[]): HighlightInstruction
   }))
 }
 
-/**
- * Run the AI agent to decide which elements to highlight.
- *
- * Process:
- * 1. Take Algolia search results (top UI elements)
- * 2. Build context-aware prompt
- * 3. Call LLM to make decisions
- * 4. Parse and validate output
- * 5. Apply constraints (max highlights, confidence threshold)
- * 6. Convert to HighlightInstructions
- *
- * Returns empty array if the agent fails or is disabled.
- */
 export async function runAgent(
   context: PageContext,
   algoliaResults: UIElement[],
   config: AgentConfig = {}
 ): Promise<AgentOutput | null> {
-  // Return early if no results to work with
   if (algoliaResults.length === 0) {
     console.log('[Agent] No Algolia results provided, skipping agent')
     return null
   }
 
-  // Check if LLM is configured
   console.log('[Agent] Checking LLM provider availability, OPENAI_API_KEY set:', !!process.env.OPENAI_API_KEY)
   try {
     const provider = getProvider()
@@ -279,14 +255,12 @@ export async function runAgent(
     ])
     console.log(`[Agent] LLM response (first 200 chars):`, response.content.substring(0, 200))
 
-    // Parse agent output
     const output = parseAgentOutput(response.content)
     if (!output) {
       console.warn('[Agent] Failed to parse agent output')
       return null
     }
 
-    // Apply constraints
     const constrainedDecisions = applyConstraints(output.decisions, {
       maxHighlights: config.maxHighlights || 5,
       minConfidence: config.minConfidence || 'low',
@@ -309,24 +283,14 @@ export async function runAgent(
   }
 }
 
-/**
- * Convert agent output to HighlightInstructions for rendering.
- */
 export function agentOutputToHighlights(output: AgentOutput): HighlightInstruction[] {
   return decisionsToHighlights(output.decisions)
 }
 
 /**
- * Build a system prompt for highlight selection in CHAT MODE.
- * 
- * This is DIFFERENT from the general highlight agent prompt.
- * In chat mode, the agent should:
- * - Select ONLY elements directly relevant to the user's specific request
- * - Avoid broad, general selections
- * - Prefer precision over coverage
- * - Return FEW highlights, not MANY
- * 
- * The user asked for something specific. The AI must respect that scope.
+ * Build system prompt for highlight selection in CHAT MODE.
+ * This is separate from the general highlight agent prompt.
+ * In chat mode, the agent selects ONLY elements directly relevant to the user's specific request.
  */
 function buildChatHighlightSystemPrompt(): string {
   return `You are a precise guide for webpages. Your role is to highlight elements that directly answer a user's specific question.
@@ -374,10 +338,8 @@ Remember: The user asked for something SPECIFIC. Honor that specificity.`
 }
 
 /**
- * Build a user prompt for highlight selection in CHAT MODE.
- * 
- * This prompt includes the user's specific request, so the agent
- * understands it should select narrowly and precisely.
+ * Build user prompt for chat-mode highlight selection.
+ * Includes the user's specific request for scoped element selection.
  */
 function buildChatHighlightUserPrompt(
   userMessage: string,
@@ -388,14 +350,13 @@ function buildChatHighlightUserPrompt(
   const interactive = visibleElements.filter((e) => e.type === 'button' || e.type === 'link').slice(0, 10)
   const textElements = visibleElements.filter((e) => e.type === 'text').slice(0, 10)
 
-  // Extract domain from URL for context
   let siteName = ''
   if (pageUrl) {
     try {
       const url = new URL(pageUrl)
       siteName = `\nCurrent site: ${url.hostname}`
     } catch {
-      // Ignore URL parsing errors
+      // Silently ignore URL parsing errors
     }
   }
 
@@ -420,17 +381,8 @@ Return ONLY valid JSON. No markdown, no explanation outside the JSON block.`
 
 /**
  * Run the highlight agent in CHAT MODE.
- * 
- * This is a variant of runAgent() specifically for responding to user chat requests.
- * It uses a different system prompt that emphasizes precision and directness:
- * - Highlight ONLY elements matching the user's specific request
- * - Avoid broad selections
- * - Return few highlights (0-2) rather than many
- * 
- * @param userMessage - The user's specific request
- * @param visibleElements - All visible elements on the page (not Algolia filtered)
- * @param config - Agent configuration (maxHighlights, minConfidence, timeout)
- * @returns Promise resolving to AgentOutput | null
+ * Variant of runAgent() specifically for responding to user chat requests.
+ * Uses a precision-focused prompt that highlights ONLY elements matching the user's specific request.
  */
 export async function runChatHighlightAgent(
   userMessage: string,
@@ -475,15 +427,12 @@ export async function runChatHighlightAgent(
 
     console.log(`[Chat Highlight Agent] LLM response (first 150 chars):`, response.content.substring(0, 150))
 
-    // Parse agent output
     const output = parseAgentOutput(response.content)
     if (!output) {
       console.warn('[Chat Highlight Agent] Failed to parse agent output')
       return null
     }
 
-    // Apply stricter constraints for chat mode
-    // Default to max 2-3 highlights in chat mode (user asked for something specific)
     const constrainedDecisions = applyConstraints(output.decisions, {
       maxHighlights: config.maxHighlights || 3,
       minConfidence: config.minConfidence || 'low',
@@ -507,13 +456,9 @@ export async function runChatHighlightAgent(
 }
 
 /**
- * Build a conversational system prompt for chat responses.
- * This is SEPARATE from the highlight-selection agent prompt.
- * 
- * The chat agent should:
- * - Respond naturally to user queries
- * - Explain what it found on the page
- * - NOT expose internal element selection reasoning
+ * Build system prompt for conversational chat responses.
+ * SEPARATE from the highlight-selection agent prompt.
+ * Ensures chat responses sound natural, not analytical.
  */
 function buildChatSystemPrompt(): string {
   return `You are a helpful assistant guiding someone through a complex webpage. Your role is to:
@@ -536,7 +481,7 @@ TONE:
 }
 
 /**
- * Build a prompt for the chat agent that incorporates the user's message and available elements.
+ * Build user prompt for the chat agent with page context.
  * IMPORTANT: Now includes page URL so AI knows which site it's on.
  */
 function buildChatUserPrompt(
@@ -558,14 +503,13 @@ function buildChatUserPrompt(
     elementsByType.text.length > 0 ? `Content: ${elementsByType.text.map((e) => `"${e.text.substring(0, 30)}"`).join(', ')}` : null,
   ].filter((x) => x !== null)
 
-  // Extract domain from URL for context
   let siteName = ''
   if (pageUrl) {
     try {
       const url = new URL(pageUrl)
       siteName = `\nYou are on: ${url.hostname}`
     } catch {
-      // Ignore URL parsing errors
+      // Silently ignore URL parsing errors
     }
   }
 
@@ -579,27 +523,14 @@ Respond to the user's question naturally. Identify which elements on the page ar
 
 /**
  * Chat Agent: Processes conversational user queries and returns highlights + explanation.
- *
- * This function:
- * 1. Takes a user message (conversational intent)
- * 2. Receives page context (current visible elements)
- * 3. Uses a SEPARATE conversational prompt to respond naturally
- * 4. Also runs the highlight agent to decide what to highlight
- * 5. Returns both a conversational response and highlight instructions
- *
- * IMPORTANT: The chat response uses a different system prompt than the highlight agent.
- * This ensures chat responses are conversational, not analytical.
- *
- * @param userMessage - The user's question or request
- * @param pageContext - Current page context with elements
- * @returns Promise resolving to { message: assistant response, highlights: HighlightInstructions[] }
+ * Uses SEPARATE conversational and highlight-selection prompts.
+ * Ensures chat responses are natural, not analytical.
  */
 export async function runChatAgent(
   userMessage: string,
   pageContext?: PageContext
 ): Promise<{ message: string; highlights: HighlightInstruction[] }> {
   try {
-    // If no page context, return a helpful message
     if (!pageContext || !pageContext.elements || pageContext.elements.length === 0) {
       return {
         message: 'I can see you\'re on a page, but I don\'t have visibility into the elements right now. Try asking about something specific on the page.',
@@ -607,7 +538,6 @@ export async function runChatAgent(
       }
     }
 
-    // For chat mode, use all visible elements as candidates
     const visibleElements = pageContext.elements.filter(
       (el) => el.visibility !== 'offscreen'
     )
@@ -619,7 +549,6 @@ export async function runChatAgent(
       }
     }
 
-    // Step 1: Generate a conversational response using the chat prompt
     let conversationalMessage = ''
     try {
       const provider = getProvider()
@@ -650,17 +579,14 @@ export async function runChatAgent(
       conversationalMessage = `I found some content on the page related to "${userMessage}". Check the highlighted elements below.`
     }
 
-    // Step 2: Run the CHAT-SPECIFIC highlight agent to decide what to highlight
-    // This uses a precision-focused prompt that respects the user's specific request
-    // (different from the general highlight-selection agent used in proactive mode)
-    const highlightConfig: AgentConfig = {
-      maxHighlights: 3, // Stricter limit in chat mode (user asked for something specific)
-      minConfidence: 'low',
-      timeout: 15000,
-    }
-
     let highlights: HighlightInstruction[] = []
     try {
+      const highlightConfig: AgentConfig = {
+        maxHighlights: 3,
+        minConfidence: 'low',
+        timeout: 15000,
+      }
+
       const highlightOutput = await runChatHighlightAgent(userMessage, visibleElements, highlightConfig, pageContext.url)
       if (highlightOutput && highlightOutput.decisions.length > 0) {
         highlights = agentOutputToHighlights(highlightOutput)
@@ -670,7 +596,6 @@ export async function runChatAgent(
       }
     } catch (error) {
       console.warn('[Chat Agent] Failed to generate highlights:', error instanceof Error ? error.message : String(error))
-      // No highlights on error — that's okay, the conversational response stands alone
     }
 
     return {

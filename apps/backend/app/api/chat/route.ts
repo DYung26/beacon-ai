@@ -1,15 +1,3 @@
-/**
- * Chat API Endpoint
- * POST /api/chat
- *
- * Accepts user messages and page context, interprets user intent,
- * and returns both an AI response and updated HighlightInstructions
- * to guide the user's attention on the page.
- *
- * This endpoint integrates with the AI agent to handle conversational
- * requests while maintaining highlighting context.
- */
-
 import type { PageContext } from '@beacon/shared'
 import { runChatAgent } from '../../../lib/agent'
 
@@ -28,10 +16,6 @@ interface ChatResponse {
   }>
 }
 
-/**
- * Enable CORS for the chat endpoint.
- * This allows the extension to make requests from any webpage context.
- */
 function setCORSHeaders(response: Response): Response {
   response.headers.set('Access-Control-Allow-Origin', '*')
   response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -39,16 +23,10 @@ function setCORSHeaders(response: Response): Response {
   return response
 }
 
-/**
- * Handle preflight requests
- */
 export async function OPTIONS(): Promise<Response> {
   return setCORSHeaders(new Response(null, { status: 200 }))
 }
 
-/**
- * Handle chat requests
- */
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = (await request.json()) as ChatRequest
@@ -65,10 +43,6 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    console.log('[Chat API] Received message:', body.userMessage)
-    console.log('[Chat API] Page context:', body.pageContext?.url)
-
-    // Run the AI agent to process the chat message and determine highlights
     const agentResponse = await runChatAgent(
       body.userMessage,
       body.pageContext
@@ -78,11 +52,6 @@ export async function POST(request: Request): Promise<Response> {
       message: agentResponse.message,
       highlights: agentResponse.highlights,
     }
-
-    console.log('[Chat API] Response:', {
-      messageLength: response.message.length,
-      highlightCount: response.highlights.length,
-    })
 
     return setCORSHeaders(
       new Response(JSON.stringify(response), {

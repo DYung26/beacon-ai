@@ -107,8 +107,6 @@ export function createOverlayManager(): OverlayManager {
       reactRoot = createRoot(rootDiv)
       reactRoot.render(React.createElement(Overlay, { ref: overlayRef }))
     }
-
-    console.log('✓ Beacon overlay mounted')
   }
 
   function unmount() {
@@ -125,7 +123,6 @@ export function createOverlayManager(): OverlayManager {
 
       currentState = 'hidden'
       disableKeyboardSuppression() // Ensure keyboard is restored when unmounting
-      console.log('✓ Beacon overlay unmounted')
     }
   }
 
@@ -142,7 +139,6 @@ export function createOverlayManager(): OverlayManager {
       overlayRef.current?.setVisible(true)
       overlayRef.current?.setMode('highlights-only')
       disableKeyboardSuppression() // Highlights-only mode allows page keyboard
-      console.log('✓ Beacon showing in highlights-only mode')
       return
     }
 
@@ -154,7 +150,6 @@ export function createOverlayManager(): OverlayManager {
         overlayRef.current.setVisible(true)
         overlayRef.current.setMode('highlights-only')
         disableKeyboardSuppression() // Highlights-only mode allows page keyboard
-        console.log('✓ Beacon showing in highlights-only mode')
         break
 
       case 'highlights-only':
@@ -162,7 +157,6 @@ export function createOverlayManager(): OverlayManager {
         currentState = 'chat'
         overlayRef.current.setMode('chat')
         enableKeyboardSuppression() // Chat mode blocks all page keyboard input
-        console.log('✓ Beacon switched to chat mode')
         break
 
       case 'chat':
@@ -170,7 +164,6 @@ export function createOverlayManager(): OverlayManager {
         currentState = 'hidden'
         overlayRef.current.setVisible(false)
         disableKeyboardSuppression() // Hidden mode allows page keyboard
-        console.log('✓ Beacon hidden')
         break
     }
   }

@@ -9,8 +9,6 @@ import { createGuideCoordinator } from '../content/guideCoordinator'
 import { createGuideIntegration } from './guideIntegration'
 import { requestGuideFromOverlay } from './guideClientOverlay'
 
-console.log('✓ Beacon overlay loaded')
-
 // NOTE: DOM observer is already initialized in the content script (content/observer.ts)
 // We do NOT initialize it again here, as it would create a duplicate instance.
 // Instead, we use getCurrentPageContext() which uses the __beaconGetContext
@@ -56,12 +54,7 @@ highlightManager.initialize()
 const guideCoordinator = createGuideCoordinator({
   requestFn: requestGuideFromOverlay, // Use message-based communication
   onResponse: (response) => {
-    console.log('[Beacon] Guide API response received:', {
-      highlights: response.highlights.length,
-      debug: response.debug,
-    })
-    // CRITICAL: Render highlights immediately when response arrives
-    // Do NOT wait for scroll/resize events
+    // Render highlights immediately when response arrives
     highlightManager.updateFromGuide(response)
   },
   onError: (error) => {
@@ -101,7 +94,6 @@ window.addEventListener('message', (event) => {
   if (message.type === 'beacon:set-self-highlighting') {
     const enabled = message.enabled as boolean
     window.__beaconSelfHighlightingEnabled = enabled
-    console.log(`[Beacon] Self-highlighting ${enabled ? 'enabled' : 'disabled'}`)
     
     // If disabled, clear current highlights
     if (!enabled) {
@@ -134,8 +126,6 @@ window.addEventListener('message', async (event) => {
       payload: { message: string; highlights: any[] }
     }
 
-    console.log('[Beacon Chat] Response received:', payload)
-
     // Update highlights if the chat response includes new ones
     if (payload.highlights && payload.highlights.length > 0) {
       highlightManager.updateFromGuide({
@@ -160,7 +150,4 @@ window.addEventListener('beforeunload', () => {
   guideIntegration.cleanup()
 })
 
-console.log('✓ Beacon overlay initialized (press Alt + B to cycle: highlights → chat → hidden)')
-console.log('✓ Beacon highlight system active with guide API integration')
-console.log('✓ Beacon chat layer ready (toggle via Alt + B)')
-console.log('✓ Self-highlighting toggle ready (enabled by default)')
+console.log('[Beacon] Initialized')

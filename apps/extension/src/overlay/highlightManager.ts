@@ -48,7 +48,6 @@ export function createHighlightManager(): HighlightManagerInterface {
 
     initializeHighlighting()
     initialized = true
-    console.log('✓ Beacon highlight manager initialized')
   }
 
   function update(context: PageContext): void {
@@ -113,7 +112,6 @@ export function createHighlightManager(): HighlightManagerInterface {
     clear()
     cleanupHighlighting()
     initialized = false
-    console.log('✓ Beacon highlight manager cleaned up')
   }
 
   function isActive(): boolean {
@@ -206,7 +204,6 @@ export function startHighlightSystem(
     }
     scrollTimeout = window.setTimeout(() => {
       const context = getPageContext()
-      console.log('[Beacon] Scroll triggered reevaluation, requesting fresh guide')
       // Treat scroll as an intent signal: generate fresh guide request
       // Do NOT check referential equality - scroll itself is the signal
       updateHighlights(context)
@@ -222,7 +219,6 @@ export function startHighlightSystem(
     }
     resizeTimeout = window.setTimeout(() => {
       const context = getPageContext()
-      console.log('[Beacon] Resize triggered reevaluation, requesting fresh guide')
       // Treat resize as an intent signal - do NOT check referential equality
       updateHighlights(context)
       resizeTimeout = null

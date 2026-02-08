@@ -167,7 +167,6 @@ export function renderHighlight(instruction: HighlightInstruction): void {
     entry!.highlightEl.classList.add('visible')
     entry!.tooltipEl.classList.add('visible')
     entry!.isVisible = true
-    console.log(`[Beacon] Highlighting: ${instruction.reason || instruction.selector}`)
   }, 10) // Small delay to trigger CSS transition
 
   // Start continuous position updates
@@ -196,8 +195,6 @@ export function clearAllHighlights(): void {
     }
     activeHighlights.clear()
   }, ANIMATION_DURATION_MS)
-
-  console.log('[Beacon] All highlights cleared')
 }
 
 /**
@@ -223,8 +220,6 @@ export function clearHighlight(selector: string): void {
     }
     activeHighlights.delete(selector)
   }, ANIMATION_DURATION_MS)
-
-  console.log(`[Beacon] Highlight cleared: ${selector}`)
 }
 
 /**
