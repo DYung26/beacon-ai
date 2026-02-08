@@ -2,11 +2,22 @@
   "manifest_version": 3,
   "name": "Beacon",
   "version": "0.1.0",
-  "permissions": ["scripting", "activeTab"],
+  "description": "Beacon visually guides users on information-dense webpages",
+  "permissions": ["activeTab"],
+  "content_security_policy": {
+    "connect-src": ["'self'", "http://localhost:3000", "http://127.0.0.1:3000"]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content/observer.ts"]
+      "js": ["content-loader.js"],
+      "css": ["highlight-styles.css"]
     }
   ]
 }
