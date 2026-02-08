@@ -94,6 +94,24 @@ function createHighlightElement(
   tooltipEl.textContent = instruction.reason || 'Highlighted'
   highlightContainer.appendChild(tooltipEl)
 
+  // Add hover listener to elevate tooltip z-index above all others
+  // This ensures tooltips are always readable when hovered, even if they overlap
+  tooltipEl.addEventListener('mouseenter', () => {
+    // Store current z-index and set to maximum to bring to front
+    tooltipEl.style.zIndex = '2147483648' // Just above other tooltips
+    activeHighlights.forEach((entry) => {
+      // Reset other tooltips to normal z-index
+      if (entry.tooltipEl !== tooltipEl) {
+        entry.tooltipEl.style.zIndex = '2147483647'
+      }
+    })
+  })
+
+  tooltipEl.addEventListener('mouseleave', () => {
+    // Reset to normal z-index when hover ends
+    tooltipEl.style.zIndex = '2147483647'
+  })
+
   return {
     instruction,
     targetElement,

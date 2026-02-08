@@ -234,8 +234,12 @@ export function startHighlightSystem(
   window.addEventListener('resize', handleResize, { passive: true })
 
   // Initial highlight render - trigger guide request immediately on load
-  const initialContext = getPageContext()
-  updateHighlights(initialContext)
+  // Use requestAnimationFrame to ensure DOM is fully ready before requesting highlights
+  // This fixes the issue where initial load had zero elements because the DOM wasn't settled yet
+  requestAnimationFrame(() => {
+    const initialContext = getPageContext()
+    updateHighlights(initialContext)
+  })
 
   // Return cleanup function
   return () => {

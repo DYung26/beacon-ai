@@ -192,16 +192,22 @@ function createBoundingBox(rect: DOMRect): BoundingBox {
  * Traverse the DOM and extract visible UI elements.
  * Returns a deduplicated list of meaningful elements.
  * 
- * Expanded to capture all meaningful element types, not just headings.
- * This gives the AI agent full visibility to decide what to highlight.
+ * This function now captures ALL meaningful visible content:
+ * - Headings, links, buttons (as before)
+ * - Text blocks, paragraphs, list items
+ * - Plain text inside generic divs and spans
+ * 
+ * The goal is to give the AI agent complete page context,
+ * not to filter or prioritize elements here.
+ * Element filtering and prioritization are AI's job.
  */
 function extractVisibleElements(): UIElement[] {
   const elements: UIElement[] = []
   const seenElements = new Set<Element>()
   let elementId = 0
 
-  // Expanded selector list to capture diverse UI elements equally
-  // No bias toward headings — let the AI agent decide priority
+  // First pass: use selectors to capture specific element types
+  // (headings, buttons, links, etc.)
   const selectors = [
     // Headings (all levels)
     'h1, h2, h3, h4, h5, h6',
@@ -265,6 +271,78 @@ function extractVisibleElements(): UIElement[] {
     } catch {
       // Silently skip invalid selectors
     }
+  }
+
+  // Second pass: traverse DOM to capture plain text content
+  // This captures meaningful text in generic elements (divs, spans, etc.)
+  // that might not match the selector list above.
+  function traverseForTextElements(node: Node, depth: number = 0): void {
+    if (depth > 20) return // Prevent excessive recursion
+
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.textContent?.trim() || ''
+        
+        // Skip whitespace-only text nodes
+        if (!text || text.length === 0) {
+          continue
+        }
+
+        // Skip very long text (likely a parent container with lots of content)
+        if (text.length > 5000) {
+          continue
+        }
+
+        // Use the parent element
+        const parentElement = child.parentElement
+        if (!parentElement || seenElements.has(parentElement)) {
+          continue
+        }
+
+        // Skip if not visible
+        if (!isElementVisible(parentElement)) {
+          continue
+        }
+
+        // Skip script, style, and other non-content elements
+        const tag = parentElement.tagName.toLowerCase()
+        if (['script', 'style', 'meta', 'link', 'noscript', 'head', 'title'].includes(tag)) {
+          continue
+        }
+
+        // Skip if parent is already a captured semantic element type
+        // (we don't want to duplicate headings, buttons, etc.)
+        if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'button', 'a', 'p', 'li'].includes(tag)) {
+          continue
+        }
+
+        const rect = parentElement.getBoundingClientRect()
+        const stableSelector = generateStableSelector(parentElement)
+        const visibility = getVisibilityState(rect, viewportHeight)
+
+        // Capture this text element
+        elements.push({
+          id: `elem-${elementId++}`,
+          type: 'text',
+          tag,
+          text: text.substring(0, 500),
+          selector: stableSelector,
+          boundingBox: createBoundingBox(rect),
+          visibility,
+          isVisible: true,
+        })
+
+        seenElements.add(parentElement)
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        // Recursively traverse element nodes
+        traverseForTextElements(child, depth + 1)
+      }
+    }
+  }
+
+  // Start traversal from document body
+  if (document.body) {
+    traverseForTextElements(document.body)
   }
 
   // Log element extraction statistics for debugging

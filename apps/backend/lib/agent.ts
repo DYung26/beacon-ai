@@ -20,9 +20,6 @@
 import type { UIElement, PageContext, HighlightInstruction } from '@beacon/shared'
 import { getProvider, type LLMMessage } from './llm'
 
-/**
- * Represents a single decision made by the agent.
- */
 export interface AgentDecision {
   selector: string
   elementType: string
@@ -32,18 +29,12 @@ export interface AgentDecision {
   style: 'outline' | 'glow'
 }
 
-/**
- * Agent output after processing.
- */
 export interface AgentOutput {
   decisions: AgentDecision[]
   reasoning: string
   tokensUsed?: number
 }
 
-/**
- * Configuration for agent constraints.
- */
 export interface AgentConfig {
   maxHighlights?: number
   minConfidence?: 'low' | 'medium' | 'high'
@@ -52,12 +43,7 @@ export interface AgentConfig {
 
 /**
  * System prompt for the UI guidance agent.
- * Defines the agent's role, constraints, and output format.
- *
- * UPDATED: Tone changed from descriptive documentation to conversational guidance.
- * The agent now speaks directly to the user (second person) using soft, uncertain
- * language ("looks like", "you might", "you can") to explain WHY elements are
- * relevant, not WHAT they are.
+ * UPDATED: Tone changed to conversational guidance (speak to user, not documentation).
  */
 function buildSystemPrompt(): string {
   return `You are a helpful guide for complex webpages. Your role is to highlight elements that might help the user navigate or understand the page better.
@@ -153,12 +139,8 @@ Consider:
 Return ONLY valid JSON. No markdown, no explanation outside the JSON block.`;
 }
 
-/**
- * Parse agent output and validate JSON structure.
- */
 function parseAgentOutput(content: string): AgentOutput | null {
   try {
-    // Try to extract JSON from the response (in case there's extra text)
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       console.warn('[Agent] No JSON found in response:', content.substring(0, 100))
