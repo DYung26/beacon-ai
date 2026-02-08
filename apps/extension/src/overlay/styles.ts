@@ -1,0 +1,145 @@
+// Beacon Overlay Styles - to be injected into Shadow DOM
+export const OVERLAY_STYLES = `
+/* Beacon Overlay Styles - Isolated from host page using Shadow DOM */
+
+.beacon-overlay {
+  all: revert;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1a1a1a;
+}
+
+.beacon-panel {
+  all: revert;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  min-width: 300px;
+  max-width: 400px;
+}
+
+.beacon-header {
+  all: revert;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.beacon-header h2 {
+  all: revert;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+}
+
+.beacon-close {
+  all: revert;
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.beacon-close:hover {
+  transform: scale(1.2);
+}
+
+.beacon-close:active {
+  transform: scale(0.95);
+}
+
+.beacon-content {
+  all: revert;
+  padding: 16px;
+  background: white;
+  color: #333;
+}
+
+.beacon-content p {
+  all: revert;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.beacon-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Status indicator styles */
+.beacon-status {
+  all: revert;
+  font-size: 13px !important;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 12px 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.beacon-status-idle {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.beacon-status-loading {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+  animation: beacon-pulse 1.5s ease-in-out infinite;
+}
+
+.beacon-status-error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+@keyframes beacon-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.beacon-hint {
+  all: revert;
+  font-size: 12px !important;
+  color: #666;
+  margin-top: 8px !important;
+}
+
+.beacon-hint kbd {
+  all: revert;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  display: inline-block;
+}
+`
