@@ -116,26 +116,39 @@ function extractTextContent(element: Element): string {
 
 /**
  * Determine the type of a UI element.
+ * Expanded to classify diverse element types for AI reasoning.
  */
 function getElementType(element: Element): UIElementType {
   const tag = element.tagName.toLowerCase()
+  const role = element.getAttribute('role')
 
+  // Headings
   if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
     return 'heading'
   }
 
-  if (tag === 'button' || element.getAttribute('role') === 'button') {
+  // Buttons
+  if (tag === 'button' || role === 'button' || 
+      ['submit', 'reset', 'button'].includes(tag === 'input' ? element.getAttribute('type') || '' : '')) {
     return 'button'
   }
 
-  if (tag === 'a' && element.getAttribute('href')) {
+  // Links
+  if ((tag === 'a' && element.getAttribute('href')) || role === 'link') {
     return 'link'
   }
 
-  if (['p', 'section', 'article', 'div', 'span'].includes(tag)) {
-    return 'text'
+  // Form inputs
+  if (['input', 'textarea', 'select'].includes(tag)) {
+    return 'button' // Treat interactive form elements as button-like
   }
 
+  // Navigation
+  if (tag === 'nav' || role === 'navigation') {
+    return 'text' // Navigation containers hold text/links
+  }
+
+  // Text and content (default)
   return 'text'
 }
 
@@ -178,18 +191,32 @@ function createBoundingBox(rect: DOMRect): BoundingBox {
 /**
  * Traverse the DOM and extract visible UI elements.
  * Returns a deduplicated list of meaningful elements.
+ * 
+ * Expanded to capture all meaningful element types, not just headings.
+ * This gives the AI agent full visibility to decide what to highlight.
  */
 function extractVisibleElements(): UIElement[] {
   const elements: UIElement[] = []
   const seenElements = new Set<Element>()
   let elementId = 0
 
-  // Target specific semantic elements for efficiency
+  // Expanded selector list to capture diverse UI elements equally
+  // No bias toward headings — let the AI agent decide priority
   const selectors = [
-    'h1, h2, h3, h4, h5, h6', // Headings
-    'button, [role="button"]', // Buttons
-    'a[href]', // Links
-    'p, article, section', // Text blocks
+    // Headings (all levels)
+    'h1, h2, h3, h4, h5, h6',
+    // Buttons and button-like elements
+    'button, [role="button"], input[type="button"], input[type="submit"]',
+    // Links and navigation
+    'a[href], nav, [role="navigation"]',
+    // Text and content blocks
+    'p, article, section, div[role="main"], main',
+    // Form elements
+    'input, textarea, select, label',
+    // Lists and list items
+    'ul, ol, li, [role="listitem"]',
+    // Cards and containers (common UI patterns)
+    '[role="article"], [class*="card"], [class*="item"], [class*="row"]',
   ]
 
   const viewportHeight = window.innerHeight
@@ -239,6 +266,17 @@ function extractVisibleElements(): UIElement[] {
       // Silently skip invalid selectors
     }
   }
+
+  // Log element extraction statistics for debugging
+  const elementCounts = elements.reduce((acc, el) => {
+    acc[el.type] = (acc[el.type] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+  
+  console.log('[Beacon] Extracted elements:', {
+    total: elements.length,
+    byType: elementCounts,
+  })
 
   return elements
 }

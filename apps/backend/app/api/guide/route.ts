@@ -128,7 +128,7 @@ async function selectElementsToHighlight(
     if (allResults.length > 0 && process.env.OPENAI_API_KEY) {
       console.log('[Guide API] Running AI agent on', allResults.length, 'Algolia results')
       const agentOutput = await runAgent(context, allResults, {
-        maxHighlights: 5,
+        maxHighlights: 50,
         minConfidence: 'low',
         timeout: 10000,
       })

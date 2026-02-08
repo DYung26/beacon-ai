@@ -18,9 +18,9 @@
   box-sizing: border-box;
 }
 
-/* Outline style - simple colored border with padding */
+/* Outline style - cyan/teal border for clear visibility */
 .beacon-highlight.highlight-outline {
-  border: 3px solid #667eea;
+  border: 3px solid #22d3ee;
   background: none;
   box-shadow: none;
 }
@@ -29,24 +29,24 @@
   opacity: 1;
 }
 
-/* Glow style - colored gradient glow with padding */
+/* Glow style - cyan/teal gradient glow for emphasis */
 .beacon-highlight.highlight-glow {
-  border: 2px solid rgba(102, 126, 234, 0.6);
-  background: rgba(102, 126, 234, 0.05);
-  box-shadow: 0 0 20px rgba(102, 126, 234, 0.4), inset 0 0 20px rgba(102, 126, 234, 0.1);
+  border: 2px solid rgba(34, 211, 238, 0.7);
+  background: rgba(34, 211, 238, 0.08);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.45), inset 0 0 20px rgba(34, 211, 238, 0.1);
 }
 
 .beacon-highlight.highlight-glow.visible {
   opacity: 1;
 }
 
-/* Pulse animation for glow style */
+/* Pulse animation for glow style - cyan accent */
 @keyframes beacon-pulse {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(102, 126, 234, 0.4), inset 0 0 20px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.45), inset 0 0 20px rgba(34, 211, 238, 0.1);
   }
   50% {
-    box-shadow: 0 0 30px rgba(102, 126, 234, 0.6), inset 0 0 30px rgba(102, 126, 234, 0.15);
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.6), inset 0 0 30px rgba(34, 211, 238, 0.15);
   }
 }
 
@@ -54,13 +54,14 @@
   animation: beacon-pulse 2000ms ease-in-out infinite;
 }
 
-/* Tooltip styling - speech bubble with hover expansion */
+/* Tooltip styling - AI guidance bubble with speech arrow */
 .beacon-tooltip {
   position: fixed;
   pointer-events: auto !important;
-  background: rgba(0, 0, 0, 0.92);
-  color: #fff;
-  padding: 6px 12px;
+  background: #f9fafb;
+  color: #111827;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 6px;
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -72,39 +73,42 @@
   z-index: 2147483647;
   opacity: 0;
   transition: opacity 200ms ease-out, max-width 200ms ease-out, white-space 200ms ease-out, height 200ms ease-out;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }
 
-/* Pointer arrow pointing to the highlighted element */
+/* Pointer arrow pointing toward the highlighted element */
 .beacon-tooltip::after {
   content: '';
   position: absolute;
-  width: 8px;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.92);
+  width: 6px;
+  height: 6px;
+  background: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-top: none;
+  border-left: none;
   border-radius: 1px;
-  transform: rotate(45deg);
-  bottom: -4px;
+  transform: rotate(45deg) translateY(-50%);
+  bottom: -3px;
   left: 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .beacon-tooltip.visible {
   opacity: 1;
 }
 
-/* Expanded state on hover - show full text */
+/* Expanded state on hover - show full text with multi-line support */
 .beacon-tooltip:hover {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   max-width: 300px;
   height: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
-/* Adjust pointer position when tooltip expands upward */
+/* Adjust pointer position when tooltip is positioned above */
 .beacon-tooltip.above:hover {
   bottom: auto;
   top: auto;

@@ -156,20 +156,12 @@ export function startHighlightSystem(
   const manager = createHighlightManager()
   manager.initialize()
 
-  let lastContext: PageContext | null = null
-  let lastGuideRequestTime = 0
-  const MIN_GUIDE_REQUEST_INTERVAL = 2000 // Minimum 2s between guide requests
-
   // Function to update highlights based on context
   // This is called when the page context changes (via scroll/resize listeners)
   function updateHighlights(context: PageContext) {
     try {
-      const now = Date.now()
-      
       // If guide coordinator is available, request backend guide
-      // But only if enough time has passed since last request
-      if (guideCoordinator && now - lastGuideRequestTime >= MIN_GUIDE_REQUEST_INTERVAL) {
-        lastGuideRequestTime = now
+      if (guideCoordinator) {
         guideCoordinator.requestGuide(context).catch((error) => {
           console.warn('[Beacon] Failed to request guide:', error)
         })
@@ -199,31 +191,36 @@ export function startHighlightSystem(
   const RESIZE_DEBOUNCE = 300
 
   // Scroll listener: Update when user scrolls
+  // Each scroll triggers a fresh guide request, allowing AI to reevaluate
+  // based on new viewport position and visible elements.
+  // NOTE: We ignore referential equality (context !== lastContext) because
+  // getPageContext() returns a new object each time. Instead, scroll is always
+  // treated as a valid signal for AI reevaluation, subject to throttling.
   const handleScroll = () => {
     if (scrollTimeout !== null) {
       clearTimeout(scrollTimeout)
     }
     scrollTimeout = window.setTimeout(() => {
       const context = getPageContext()
-      if (context !== lastContext) {
-        lastContext = context
-        updateHighlights(context)
-      }
+      console.log('[Beacon] Scroll triggered reevaluation, requesting fresh guide')
+      // Treat scroll as an intent signal: generate fresh guide request
+      // Do NOT check referential equality - scroll itself is the signal
+      updateHighlights(context)
       scrollTimeout = null
     }, SCROLL_DEBOUNCE)
   }
 
   // Resize listener: Update when viewport resizes
+  // Treat resize as a meaningful signal for reevaluation.
   const handleResize = () => {
     if (resizeTimeout !== null) {
       clearTimeout(resizeTimeout)
     }
     resizeTimeout = window.setTimeout(() => {
       const context = getPageContext()
-      if (context !== lastContext) {
-        lastContext = context
-        updateHighlights(context)
-      }
+      console.log('[Beacon] Resize triggered reevaluation, requesting fresh guide')
+      // Treat resize as an intent signal - do NOT check referential equality
+      updateHighlights(context)
       resizeTimeout = null
     }, RESIZE_DEBOUNCE)
   }
@@ -232,9 +229,8 @@ export function startHighlightSystem(
   window.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('resize', handleResize, { passive: true })
 
-  // Initial highlight render
+  // Initial highlight render - trigger guide request immediately on load
   const initialContext = getPageContext()
-  lastContext = initialContext
   updateHighlights(initialContext)
 
   // Return cleanup function
