@@ -1,0 +1,524 @@
+/**
+ * DOM Observer and Context Capture
+ * 
+ * This module observes the rendered DOM and captures a structured snapshot of:
+ * - Visible page elements (headings, text, interactive elements)
+ * - Viewport and scroll context
+ * - User interactions (clicks)
+ * 
+ * Key principle: Only capture elements that are actually visible to the user.
+ * No HTML serialization, no full DOM tree, no interpretation of intent.
+ */
+
+import type {
+  BoundingBox,
+  UIElement,
+  UIElementType,
+  VisibilityState,
+  PageContext,
+} from '@beacon/shared'
+import { generateStableSelector } from './selectorUtils'
+import { ContextHistory } from './contextHistory'
+
+declare global {
+  interface Window {
+    __beaconDOMContext?: PageContext
+    __beaconGetContext?: () => PageContext
+    __beaconContextHistory?: ContextHistory
+  }
+}
+
+// ============================================================================
+// Visibility Detection
+// ============================================================================
+
+/**
+ * Check if an element is visible on the page.
+ * An element is considered visible if:
+ * - display !== 'none'
+ * - visibility !== 'hidden'
+ * - opacity > 0
+ * - bounding box has non-zero size
+ * - element is within or near the viewport
+ */
+function isElementVisible(element: Element): boolean {
+  const style = window.getComputedStyle(element)
+
+  // Check display property
+  if (style.display === 'none') {
+    return false
+  }
+
+  // Check visibility property
+  if (style.visibility === 'hidden') {
+    return false
+  }
+
+  // Check opacity
+  if (parseFloat(style.opacity) === 0) {
+    return false
+  }
+
+  // Check bounding box
+  const rect = element.getBoundingClientRect()
+  if (rect.width === 0 || rect.height === 0) {
+    return false
+  }
+
+  // Check if element is in viewport or near it (with some buffer)
+  const buffer = 1000 // pixels below viewport to consider "near"
+  if (
+    rect.bottom < -buffer ||
+    rect.top > window.innerHeight + buffer
+  ) {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Determine visibility state relative to viewport.
+ */
+function getVisibilityState(
+  rect: DOMRect,
+  viewportHeight: number
+): VisibilityState {
+  const top = rect.top
+  const bottom = rect.bottom
+
+  // Completely off screen
+  if (bottom < 0 || top > viewportHeight) {
+    return 'offscreen'
+  }
+
+  // Completely in viewport
+  if (top >= 0 && bottom <= viewportHeight) {
+    return 'in-viewport'
+  }
+
+  // Partially visible
+  return 'partially-visible'
+}
+
+// ============================================================================
+// Element Extraction
+// ============================================================================
+
+/**
+ * Extract text content from an element, trimming whitespace.
+ * Skip elements that are just structural or empty.
+ */
+function extractTextContent(element: Element): string {
+  const text = element.textContent || ''
+  return text.trim().substring(0, 500) // Limit to 500 chars
+}
+
+/**
+ * Determine the type of a UI element.
+ */
+function getElementType(element: Element): UIElementType {
+  const tag = element.tagName.toLowerCase()
+
+  if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
+    return 'heading'
+  }
+
+  if (tag === 'button' || element.getAttribute('role') === 'button') {
+    return 'button'
+  }
+
+  if (tag === 'a' && element.getAttribute('href')) {
+    return 'link'
+  }
+
+  if (['p', 'section', 'article', 'div', 'span'].includes(tag)) {
+    return 'text'
+  }
+
+  return 'text'
+}
+
+/**
+ * Should we capture this element?
+ * Filter to meaningful elements only.
+ */
+function shouldCaptureElement(element: Element, text: string): boolean {
+  // Skip if no visible text
+  if (!text || text.length === 0) {
+    return false
+  }
+
+  // Skip script and style elements
+  const tag = element.tagName.toLowerCase()
+  if (['script', 'style', 'meta', 'link', 'noscript'].includes(tag)) {
+    return false
+  }
+
+  // Skip elements with very long text (likely noise)
+  if (text.length > 5000) {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Create a BoundingBox from a DOMRect, including scroll offset.
+ */
+function createBoundingBox(rect: DOMRect): BoundingBox {
+  return {
+    x: rect.left + window.scrollX,
+    y: rect.top + window.scrollY,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+/**
+ * Traverse the DOM and extract visible UI elements.
+ * Returns a deduplicated list of meaningful elements.
+ */
+function extractVisibleElements(): UIElement[] {
+  const elements: UIElement[] = []
+  const seenElements = new Set<Element>()
+  let elementId = 0
+
+  // Target specific semantic elements for efficiency
+  const selectors = [
+    'h1, h2, h3, h4, h5, h6', // Headings
+    'button, [role="button"]', // Buttons
+    'a[href]', // Links
+    'p, article, section', // Text blocks
+  ]
+
+  const viewportHeight = window.innerHeight
+
+  for (const selector of selectors) {
+    try {
+      const foundElements = document.querySelectorAll(selector)
+
+      for (const element of foundElements) {
+        // Skip if already processed
+        if (seenElements.has(element)) {
+          continue
+        }
+
+        // Skip if not visible
+        if (!isElementVisible(element)) {
+          continue
+        }
+
+        const text = extractTextContent(element)
+
+        // Skip if no meaningful text
+        if (!shouldCaptureElement(element, text)) {
+          continue
+        }
+
+        const rect = element.getBoundingClientRect()
+        const type = getElementType(element)
+        const tag = element.tagName.toLowerCase()
+        const stableSelector = generateStableSelector(element)
+        const visibility = getVisibilityState(rect, viewportHeight)
+
+        elements.push({
+          id: `elem-${elementId++}`,
+          type,
+          tag,
+          text,
+          selector: stableSelector,
+          boundingBox: createBoundingBox(rect),
+          visibility,
+          isVisible: true,
+        })
+
+        seenElements.add(element)
+      }
+    } catch {
+      // Silently skip invalid selectors
+    }
+  }
+
+  return elements
+}
+
+// ============================================================================
+// Interaction Tracking
+// ============================================================================
+
+/**
+ * Simple click tracker. Records what the user clicked and where.
+ * Stores interactions in the context object.
+ */
+function setupInteractionTracking(
+  context: PageContext,
+  maxInteractions: number = 100
+): void {
+  document.addEventListener(
+    'click',
+    (event) => {
+      const target = event.target as Element
+      if (!target) return
+
+      // Build element identifier
+      let elementText = ''
+      if (target instanceof HTMLElement) {
+        elementText = target.textContent?.trim().substring(0, 100) || ''
+      }
+
+      // Try to find a meaningful parent if the clicked element is too generic
+      let element = target as Element | null
+      while (
+        element &&
+        (!elementText || elementText.length === 0) &&
+        element !== document.body
+      ) {
+        element = element.parentElement
+        if (element instanceof HTMLElement) {
+          elementText = element.textContent?.trim().substring(0, 100) || ''
+        }
+      }
+
+      // Record interaction
+      context.interactions.push({
+        type: 'click',
+        elementId: generateStableSelector(target),
+        elementText,
+        timestamp: Date.now(),
+        x: event.clientX,
+        y: event.clientY,
+      })
+
+      // Keep interactions list bounded
+      if (context.interactions.length > maxInteractions) {
+        context.interactions.shift()
+      }
+    },
+    true // Use capture phase
+  )
+}
+
+// ============================================================================
+// Context Update
+// ============================================================================
+
+/**
+ * Update viewport and scroll info in the context.
+ */
+function updateViewportContext(context: PageContext): void {
+  context.viewport = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+  }
+  context.timestamp = Date.now()
+}
+
+/**
+ * Rebuild the elements list in the context.
+ * Called on scroll and resize to keep element list fresh.
+ */
+function updateElements(context: PageContext): void {
+  context.elements = extractVisibleElements()
+}
+
+/**
+ * Create a listener for scroll and resize events to update context.
+ */
+function setupContextUpdaters(
+  context: PageContext,
+  history: ContextHistory
+): void {
+  let scrollTimeout: number | null = null
+  let resizeTimeout: number | null = null
+
+  // Debounced scroll handler
+  document.addEventListener('scroll', () => {
+    updateViewportContext(context)
+
+    if (scrollTimeout !== null) {
+      clearTimeout(scrollTimeout)
+    }
+
+    scrollTimeout = window.setTimeout(() => {
+      updateElements(context)
+      history.add(context)
+      logContext(context)
+      scrollTimeout = null
+    }, 200)
+  })
+
+  // Debounced resize handler
+  window.addEventListener('resize', () => {
+    updateViewportContext(context)
+
+    if (resizeTimeout !== null) {
+      clearTimeout(resizeTimeout)
+    }
+
+    resizeTimeout = window.setTimeout(() => {
+      updateElements(context)
+      history.add(context)
+      logContext(context)
+      resizeTimeout = null
+    }, 200)
+  })
+}
+
+// ============================================================================
+// Logging and Export
+// ============================================================================
+
+/**
+ * Log the page context to console for inspection.
+ * This helps verify that observation is working correctly.
+ */
+function logContext(context: PageContext): void {
+  console.log('[Beacon DOM Observer]', {
+    url: context.url,
+    viewport: context.viewport,
+    elementCount: context.elements.length,
+    interactionCount: context.interactions.length,
+    timestamp: new Date(context.timestamp).toISOString(),
+  })
+
+  console.log('[Beacon Elements]', context.elements)
+  console.log('[Beacon Interactions]', context.interactions)
+}
+
+/**
+ * Get the current page context snapshot.
+ */
+function getPageContext(): PageContext {
+  return domObserverInstance?.getContext() || {
+    url: window.location.href,
+    timestamp: Date.now(),
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    },
+    elements: [],
+    interactions: [],
+  }
+}
+
+// ============================================================================
+// DOM Observer Instance
+// ============================================================================
+
+interface DOMObserver {
+  getContext(): PageContext
+  getHistory(): ContextHistory
+  updateContext(): void
+  destroy(): void
+}
+
+let domObserverInstance: DOMObserver | null = null
+
+/**
+ * Initialize the DOM observer on the page.
+ * This function sets up all tracking and can only be called once.
+ */
+export function initializeDOMObserver(): PageContext {
+  if (domObserverInstance) {
+    console.warn('[Beacon DOM Observer] Already initialized')
+    return domObserverInstance.getContext()
+  }
+
+  // Initialize context
+  const context: PageContext = {
+    url: window.location.href,
+    timestamp: Date.now(),
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    },
+    elements: [],
+    interactions: [],
+  }
+
+  // Initialize context history
+  const history = new ContextHistory(50)
+
+  // Extract initial elements
+  context.elements = extractVisibleElements()
+
+  // Add initial context to history
+  history.add(context)
+
+  // Setup interaction tracking
+  setupInteractionTracking(context)
+
+  // Setup context updaters for scroll and resize
+  setupContextUpdaters(context, history)
+
+  // Create observer instance
+  domObserverInstance = {
+    getContext: () => context,
+    getHistory: () => history,
+    updateContext: () => {
+      updateViewportContext(context)
+      updateElements(context)
+      history.add(context)
+      logContext(context)
+    },
+    destroy: () => {
+      domObserverInstance = null
+    },
+  }
+
+  // Log initial context
+  logContext(context)
+
+  // Expose to window for debugging
+  window.__beaconDOMContext = context
+  window.__beaconGetContext = getPageContext
+  window.__beaconContextHistory = history
+
+  console.log('✓ Beacon DOM observer initialized')
+
+  return context
+}
+
+/**
+ * Get current page context (for external callers).
+ * Note: When called from overlay.js (page context), this will use window.__beaconGetContext
+ * if domObserverInstance is not available in this module instance.
+ */
+export function getCurrentPageContext(): PageContext {
+  if (domObserverInstance) {
+    return getPageContext()
+  }
+  // Fallback: For calls from overlay.js which runs in page context,
+  // the content script has already exposed __beaconGetContext to window
+  const windowGetContext = (window as unknown as Record<string, unknown>).__beaconGetContext as (() => PageContext) | undefined
+  if (windowGetContext) {
+    return windowGetContext()
+  }
+  // Last resort: return empty context
+  return {
+    url: window.location.href,
+    timestamp: Date.now(),
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    },
+    elements: [],
+    interactions: [],
+  }
+}
+
+/**
+ * Get the context history (for external callers).
+ */
+export function getContextHistory(): ContextHistory {
+  return domObserverInstance?.getHistory() || new ContextHistory(0)
+}
