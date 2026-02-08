@@ -1,6 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client'
 import React from 'react'
-import { Overlay, type OverlayHandle, type GuideStatus } from './Overlay'
+import { Overlay, type OverlayHandle, type GuideStatus, type OverlayMode } from './Overlay'
 import { OVERLAY_STYLES } from './styles'
 
 // Unique ID for the Beacon overlay container and Shadow DOM host
@@ -14,13 +14,18 @@ interface OverlayManager {
   toggle: () => void
   isVisible: () => boolean
   setGuideStatus: (status: GuideStatus) => void
+  setMode: (mode: OverlayMode) => void
+  sendChatMessage: (message: string) => void
 }
 
 let reactRoot: Root | null = null
 let shadowHost: HTMLElement | null = null
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let overlayRef: any = null
-let isOverlayVisible = true
+
+// Track Beacon's state: hidden, highlights-only, or chat mode
+type BeaconState = 'hidden' | 'highlights-only' | 'chat'
+let currentState: BeaconState = 'hidden'
 
 /**
  * Injects a Shadow DOM host element into the page and mounts the React overlay inside it.
@@ -74,7 +79,6 @@ export function createOverlayManager(): OverlayManager {
       reactRoot.render(React.createElement(Overlay, { ref: overlayRef }))
     }
 
-    isOverlayVisible = true
     console.log('✓ Beacon overlay mounted')
   }
 
@@ -90,22 +94,54 @@ export function createOverlayManager(): OverlayManager {
       }
       shadowHost = null
 
-      isOverlayVisible = false
+      currentState = 'hidden'
       console.log('✓ Beacon overlay unmounted')
     }
   }
 
+  /**
+   * Alt+B toggles between three states: hidden → highlights-only → chat → hidden
+   * This preserves state and does NOT reset on each toggle.
+   */
   function toggle() {
-    if (reactRoot && overlayRef?.current) {
-      isOverlayVisible = !isOverlayVisible
-      // Use the ref to call setVisible on the component
-      overlayRef.current.setVisible(isOverlayVisible)
-      console.log(`✓ Beacon overlay ${isOverlayVisible ? 'shown' : 'hidden'}`)
+    if (!reactRoot || !overlayRef?.current) {
+      // If not mounted, start with highlights-only mode
+      mount()
+      currentState = 'highlights-only'
+      overlayRef.current?.setVisible(true)
+      overlayRef.current?.setMode('highlights-only')
+      console.log('✓ Beacon showing in highlights-only mode')
+      return
+    }
+
+    // Cycle through states: hidden → highlights-only → chat → hidden
+    switch (currentState) {
+      case 'hidden':
+        // Show highlights-only mode
+        currentState = 'highlights-only'
+        overlayRef.current.setVisible(true)
+        overlayRef.current.setMode('highlights-only')
+        console.log('✓ Beacon showing in highlights-only mode')
+        break
+
+      case 'highlights-only':
+        // Switch to chat mode
+        currentState = 'chat'
+        overlayRef.current.setMode('chat')
+        console.log('✓ Beacon switched to chat mode')
+        break
+
+      case 'chat':
+        // Hide Beacon completely
+        currentState = 'hidden'
+        overlayRef.current.setVisible(false)
+        console.log('✓ Beacon hidden')
+        break
     }
   }
 
   function isVisible() {
-    return isOverlayVisible
+    return currentState !== 'hidden'
   }
 
   function setGuideStatus(status: GuideStatus) {
@@ -114,8 +150,22 @@ export function createOverlayManager(): OverlayManager {
     }
   }
 
+  function setMode(mode: OverlayMode) {
+    if (reactRoot && overlayRef?.current) {
+      overlayRef.current.setMode(mode)
+    }
+  }
+
+  function sendChatMessage(message: string) {
+    if (reactRoot && overlayRef?.current) {
+      overlayRef.current.sendChatMessage?.(message)
+    }
+  }
+
   // Mount immediately on creation
   mount()
+  currentState = 'highlights-only' // Start in highlights-only mode
 
-  return { mount, unmount, toggle, isVisible, setGuideStatus }
+  return { mount, unmount, toggle, isVisible, setGuideStatus, setMode, sendChatMessage }
 }
+

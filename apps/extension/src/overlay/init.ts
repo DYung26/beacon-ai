@@ -23,9 +23,12 @@ const overlayManager = createOverlayManager()
 declare global {
   interface Window {
     __beaconOverlay?: typeof overlayManager
+    __beaconSelfHighlightingEnabled?: boolean
   }
 }
 window.__beaconOverlay = overlayManager
+// Initialize self-highlighting as enabled by default
+window.__beaconSelfHighlightingEnabled = true
 
 /**
  * Create highlight manager first, as we need it in the coordinator's onResponse callback.
@@ -87,11 +90,65 @@ try {
   console.warn('[Beacon] Failed to start highlight system:', error)
 }
 
+// Listen for self-highlighting toggle changes from the overlay
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return
+  
+  const message = event.data
+  if (!message || typeof message !== 'object') return
+  
+  // Handle self-highlighting toggle
+  if (message.type === 'beacon:set-self-highlighting') {
+    const enabled = message.enabled as boolean
+    window.__beaconSelfHighlightingEnabled = enabled
+    console.log(`[Beacon] Self-highlighting ${enabled ? 'enabled' : 'disabled'}`)
+    
+    // If disabled, clear current highlights
+    if (!enabled) {
+      highlightManager.clear()
+    }
+  }
+})
+
 // Debug toggle: Press Alt + B to show/hide the overlay
 document.addEventListener('keydown', (event) => {
   if (event.altKey && event.code === 'KeyB') {
     event.preventDefault()
     overlayManager.toggle()
+  }
+})
+
+// Set up chat message handler in the overlay
+// This listens for chat responses from the content script
+window.addEventListener('message', async (event) => {
+  if (event.source !== window) return
+
+  const message = event.data
+  if (!message || typeof message !== 'object') return
+
+  // Handle chat responses from content script
+  if (message.type === 'beacon:chat-response') {
+    const { payload } = message as {
+      type: string
+      id: string
+      payload: { message: string; highlights: any[] }
+    }
+
+    console.log('[Beacon Chat] Response received:', payload)
+
+    // Update highlights if the chat response includes new ones
+    if (payload.highlights && payload.highlights.length > 0) {
+      highlightManager.updateFromGuide({
+        highlights: payload.highlights,
+        debug: { reason: 'Chat-driven highlights' },
+      })
+    }
+
+    // Broadcast to overlay to update chat UI
+    const chatUpdateEvent = new CustomEvent('beacon:chat-response', {
+      detail: payload,
+    })
+    window.dispatchEvent(chatUpdateEvent)
   }
 })
 
@@ -103,6 +160,7 @@ window.addEventListener('beforeunload', () => {
   guideIntegration.cleanup()
 })
 
-console.log('✓ Beacon overlay initialized (press Alt + B to toggle)')
+console.log('✓ Beacon overlay initialized (press Alt + B to cycle: highlights → chat → hidden)')
 console.log('✓ Beacon highlight system active with guide API integration')
-
+console.log('✓ Beacon chat layer ready (toggle via Alt + B)')
+console.log('✓ Self-highlighting toggle ready (enabled by default)')

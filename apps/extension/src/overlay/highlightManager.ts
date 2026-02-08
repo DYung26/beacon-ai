@@ -160,25 +160,29 @@ export function startHighlightSystem(
   // This is called when the page context changes (via scroll/resize listeners)
   function updateHighlights(context: PageContext) {
     try {
-      // If guide coordinator is available, request backend guide
-      if (guideCoordinator) {
+      // Check if self-highlighting is enabled before requesting guide
+      const selfHighlightingEnabled = (window as any).__beaconSelfHighlightingEnabled !== false
+      
+      // If guide coordinator is available and self-highlighting is enabled, request backend guide
+      if (guideCoordinator && selfHighlightingEnabled) {
         guideCoordinator.requestGuide(context).catch((error) => {
           console.warn('[Beacon] Failed to request guide:', error)
         })
       }
 
       // If there's a cached response, use it; otherwise fall back to local selection
-      if (guideCoordinator) {
+      if (guideCoordinator && selfHighlightingEnabled) {
         const lastResponse = guideCoordinator.getLastResponse()
         if (lastResponse) {
           manager.updateFromGuide(lastResponse)
         } else {
           manager.update(context)
         }
-      } else {
+      } else if (selfHighlightingEnabled) {
         // No guide coordinator - use local selection only
         manager.update(context)
       }
+      // If self-highlighting is disabled, do NOT render any highlights
     } catch (error) {
       console.warn('[Beacon] Error updating highlights:', error)
     }

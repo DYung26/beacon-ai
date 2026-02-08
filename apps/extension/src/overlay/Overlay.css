@@ -14,9 +14,10 @@
 
 .beacon-panel {
   all: revert;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
+  border: 2px solid #22d3ee;
   border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 40px rgba(34, 211, 238, 0.2);
   overflow: hidden;
   min-width: 300px;
   max-width: 400px;
@@ -28,8 +29,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  background: #22d3ee;
+  border-bottom: none;
 }
 
 .beacon-header h2 {
@@ -123,6 +124,36 @@
   }
 }
 
+/* Self-highlighting toggle */
+.beacon-toggle-container {
+  all: revert;
+  margin: 12px 0;
+}
+
+.beacon-toggle-label {
+  all: revert;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  user-select: none;
+}
+
+.beacon-toggle-input {
+  all: revert;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #22d3ee;
+}
+
+.beacon-toggle-label:hover {
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
 .beacon-hint {
   all: revert;
   font-size: 12px !important;
@@ -139,4 +170,190 @@
   font-family: 'Monaco', 'Courier New', monospace;
   font-size: 11px;
   display: inline-block;
+}
+
+/* Header actions (mode toggle + close) */
+.beacon-header-actions {
+  all: revert;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.beacon-mode-toggle {
+  all: revert;
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.beacon-mode-toggle:hover {
+  transform: scale(1.15);
+}
+
+.beacon-mode-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Chat panel specific styles - floating bubble appearance */
+.beacon-chat-panel {
+  all: revert;
+  background: white;
+  border: 2px solid #22d3ee;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(34, 211, 238, 0.2);
+  overflow: hidden;
+  min-width: 320px;
+  max-width: 420px;
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+.beacon-chat-messages {
+  all: revert;
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.beacon-chat-placeholder {
+  all: revert;
+  color: #9ca3af;
+  font-size: 14px;
+  text-align: center;
+  margin: auto;
+  padding: 20px;
+}
+
+.beacon-chat-message {
+  all: revert;
+  display: flex;
+  gap: 8px;
+  animation: beacon-fade-in 0.3s ease-out;
+}
+
+@keyframes beacon-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.beacon-chat-user {
+  all: revert;
+  justify-content: flex-end;
+}
+
+.beacon-chat-assistant {
+  all: revert;
+  justify-content: flex-start;
+}
+
+.beacon-chat-bubble {
+  all: revert;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 85%;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.beacon-chat-user .beacon-chat-bubble {
+  background: #22d3ee;
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.beacon-chat-assistant .beacon-chat-bubble {
+  background: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-bottom-left-radius: 4px;
+}
+
+.beacon-chat-loading {
+  font-style: italic;
+  color: #6b7280;
+}
+
+.beacon-chat-input-area {
+  all: revert;
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.beacon-chat-input {
+  all: revert;
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.beacon-chat-input:focus {
+  outline: none;
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1);
+}
+
+.beacon-chat-input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.beacon-chat-send {
+  all: revert;
+  padding: 8px 12px;
+  background: #22d3ee;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.beacon-chat-send:hover:not(:disabled) {
+  background: #06b6d4;
+  transform: translateY(-1px);
+}
+
+.beacon-chat-send:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.beacon-chat-send:disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
 }

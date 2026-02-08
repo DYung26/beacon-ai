@@ -11,6 +11,13 @@
  *   id: string (for matching responses),
  *   payload: PageContext
  * }
+ *
+ * Chat message format:
+ * {
+ *   type: 'beacon:chat-request',
+ *   id: string (for matching responses),
+ *   payload: { message: string, context: { mode: string } }
+ * }
  */
 
 import type { PageContext, GuideResponse } from '@beacon/shared'
@@ -24,6 +31,7 @@ const BACKEND_URL = 'http://localhost:3000'
 
 // Track pending requests to match responses
 const pendingRequests = new Map<string, (response: GuideResponse) => void>()
+const pendingChatRequests = new Map<string, (response: { message: string; highlights: any[] }) => void>()
 
 /**
  * Set up message listener in the content script to handle requests from the overlay.
@@ -84,6 +92,62 @@ export function setupGuideMessageHandler(): void {
       }
     }
 
+    // Handle chat request messages
+    if (message.type === 'beacon:chat-request') {
+      console.log('[Beacon Bridge] Processing chat request')
+      const { id, payload } = message as {
+        type: string
+        id: string
+        payload: { message: string; context: { mode: string } }
+      }
+
+      try {
+        // Get current page context for chat intent understanding
+        const pageContext = window.__beaconGetContext?.()
+        
+        // Send chat request to backend
+        const response = await fetch(`${BACKEND_URL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userMessage: payload.message,
+            pageContext,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        // Send response back through message
+        window.postMessage(
+          {
+            type: 'beacon:chat-response',
+            id,
+            payload: data,
+          },
+          '*'
+        )
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        console.error('[Beacon Bridge] Failed to process chat request:', msg)
+
+        window.postMessage(
+          {
+            type: 'beacon:chat-response',
+            id,
+            payload: {
+              message: 'Sorry, I encountered an error processing your request.',
+              highlights: [],
+            },
+          },
+          '*'
+        )
+      }
+    }
+
     // Handle response messages (for the overlay to receive)
     if (message.type === 'beacon:guide-response') {
       const { id, payload } = message as {
@@ -95,6 +159,21 @@ export function setupGuideMessageHandler(): void {
       const callback = pendingRequests.get(id)
       if (callback) {
         pendingRequests.delete(id)
+        callback(payload)
+      }
+    }
+
+    // Handle chat response messages
+    if (message.type === 'beacon:chat-response') {
+      const { id, payload } = message as {
+        type: string
+        id: string
+        payload: { message: string; highlights: any[] }
+      }
+
+      const callback = pendingChatRequests.get(id)
+      if (callback) {
+        pendingChatRequests.delete(id)
         callback(payload)
       }
     }
@@ -144,3 +223,45 @@ export async function requestGuideViaContentScript(
     }, 30000)
   })
 }
+
+/**
+ * Send a chat message from the overlay to the backend via content script.
+ * Handles the full message-passing round-trip.
+ *
+ * @param message - User's chat message
+ * @returns Promise resolving to { message: AI response, highlights: new highlight instructions }
+ */
+export async function sendChatMessageViaContentScript(
+  message: string
+): Promise<{ message: string; highlights: any[] }> {
+  return new Promise((resolve) => {
+    const id = `beacon-chat-${Date.now()}-${Math.random()}`
+
+    // Register callback to receive response
+    pendingChatRequests.set(id, (response) => {
+      resolve(response)
+    })
+
+    // Send request to content script
+    window.postMessage(
+      {
+        type: 'beacon:chat-request',
+        id,
+        payload: { message, context: { mode: 'chat' } },
+      },
+      '*'
+    )
+
+    // Timeout after 30 seconds
+    setTimeout(() => {
+      if (pendingChatRequests.has(id)) {
+        pendingChatRequests.delete(id)
+        resolve({
+          message: 'Request timed out. Please try again.',
+          highlights: [],
+        })
+      }
+    }, 30000)
+  })
+}
+
