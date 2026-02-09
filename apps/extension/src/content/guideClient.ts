@@ -16,7 +16,7 @@ import type { GuideRequest, GuideResponse, PageContext } from '@beacon/shared'
 // Browser extensions cannot reliably read environment variables at runtime,
 // so we use a fixed localhost URL for development.
 // For production builds, update this URL or inject it via a config file.
-const DEFAULT_BACKEND_URL = 'http://localhost:3000'
+const DEFAULT_BACKEND_URL = 'https://beacon-ai-api.vercel.app'
 
 /**
  * Send PageContext to the backend and receive HighlightInstructions.

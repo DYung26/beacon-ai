@@ -68,12 +68,20 @@ Instead of overwhelming users with all interactive elements, Beacon learns what 
    - Click "Load unpacked"
    - Select `apps/extension/dist`
 
-5. **Start the backend** (in another terminal)
+5. **Start the backend** (optional, for local development)
    ```bash
    cd apps/backend
    cp .env.example .env.local  # Configure if needed
    pnpm run dev
    # Runs on http://localhost:3000
+   
+   # NOTE: The extension is pre-configured to use the production backend
+   # (https://beacon-ai-api.vercel.app). To use a local backend instead,
+   # modify DEFAULT_BACKEND_URL in these files:
+   # - apps/extension/src/content/guideClient.ts
+   # - apps/extension/src/content/guideCoordinator.ts
+   # - apps/extension/src/content/messageBridge.ts
+   # And set it to 'http://localhost:3000'
    ```
 
 6. **Test it out**
