@@ -46,6 +46,7 @@ docs/
 
 # Browser extension build
 apps/extension/dist/
+apps/extension/dist.zip
 apps/extension/.vite/
 
 # Next.js specific
